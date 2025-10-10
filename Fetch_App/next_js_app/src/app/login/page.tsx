@@ -17,8 +17,8 @@ export default function Login() {
         <div className="flex flex-col justify-start items-center h-full pt-16 px-8">
           <div className="relative h-1/2 w-full max-w-md">
             <Image
-              src="/images/ReAwakn_logo.jpeg"
-              alt="ReAwakn Logo"
+              src="/images/Fetch_logo.png"
+              alt="Fetch Logo"
               fill
               className="object-contain dark:brightness-[0.3] dark:grayscale"
             />

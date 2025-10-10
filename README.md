@@ -1,6 +1,6 @@
-# ReAwakn App
+# Fetch App
 
-ReAwakn is a skill-sharing platform that connects people who want to learn new skills with those who can teach them. The application uses advanced matching algorithms to find the most compatible learning partners based on skills, availability, and learning preferences.
+Fetch is a skill-sharing platform that connects people who want to learn new skills with those who can teach them. The application uses advanced matching algorithms to find the most compatible learning partners based on skills, availability, and learning preferences.
 
 ## Features
 
@@ -23,8 +23,8 @@ Before you begin, ensure you have the following installed:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/ReAwakn.git
-   cd ReAwakn/ReAwakn_App/next_js_app
+   git clone https://github.com/yourusername/Fetch.git
+   cd Fetch/Fetch_App/next_js_app
    ```
 
 2. Install dependencies:
@@ -79,7 +79,7 @@ Detailed schema information can be found in the database schema documentation (i
 
 ## Recommendation Algorithm
 
-ReAwakn uses a sophisticated recommendation system to match users based on complementary skills and compatibility:
+Fetch uses a sophisticated recommendation system to match users based on complementary skills and compatibility:
 
 ### Skill Matching
 

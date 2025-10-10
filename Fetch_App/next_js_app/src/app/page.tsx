@@ -7,6 +7,11 @@ import HomeHeader from "@/components/homeHeader";
 import SocialWall from "./social_wall/page";
 import TopMatchesSidebar from "@/components/TopMatchesSidebar";
 export default function Home() {
+  console.log("SB URL", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log(
+    "SB KEY present?",
+    !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
   const router = useRouter();
 
   const checkAuthAndOnboarding = async () => {
