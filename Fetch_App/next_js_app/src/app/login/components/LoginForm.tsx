@@ -41,7 +41,7 @@ export function LoginForm({
         description: error.message,
       });
     } else if (await userHasCompletedOnboarding()) {
-      router.push("/");
+      router.push("/feed");
     } else {
       router.push("/new_user");
     }

@@ -141,7 +141,7 @@ export default function NewUserQuestionnaire() {
       }
 
       alert("Profile completed successfully!");
-      router.push("/");
+      router.push("/feed");
     } catch (error) {
       alert("There was an error saving your profile. Please try again.");
     }

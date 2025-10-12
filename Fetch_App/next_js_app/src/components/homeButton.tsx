@@ -6,7 +6,7 @@ export default function homeButton() {
 
   return (
     <button
-      onClick={() => router.push("/")}
+      onClick={() => router.push("/feed")}
       className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition duration-200 flex items-center justify-center space-x-2"
     >
       <svg

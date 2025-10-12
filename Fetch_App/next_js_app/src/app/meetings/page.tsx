@@ -507,10 +507,10 @@ function MeetingsPageContent() {
           </p>
           <div className="flex justify-center">
             <button
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/feed")}
               className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md transition-colors duration-200"
             >
-              Back to Home
+              Back to Feed
             </button>
           </div>
         </div>
@@ -597,10 +597,10 @@ function MeetingsPageContent() {
               </button>
             )}
             <button
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/feed")}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              Back Home
+              Back to Feed
             </button>
           </div>
         </div>

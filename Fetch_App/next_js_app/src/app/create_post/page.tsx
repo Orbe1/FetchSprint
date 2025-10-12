@@ -46,7 +46,7 @@ export default function CreatePost() {
       alert("Post created successfully");
     }
 
-    router.push("/");
+    router.push("/feed");
   };
 
   return (
@@ -92,7 +92,7 @@ export default function CreatePost() {
           </form>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Button variant="outline" onClick={() => router.push("/")}>
+          <Button variant="outline" onClick={() => router.push("/feed")}>
             Cancel
           </Button>
         </CardFooter>
