@@ -460,11 +460,22 @@ export default function ReceiptPreviewPage() {
               }`}
             >
               <div className="rounded-3xl border border-white/10 bg-white p-6 text-slate-900 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Trending videos</h2>
-                  <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                    YouTube
-                  </span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold">Trending videos</h2>
+                    <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                      YouTube
+                    </span>
+                  </div>
+                  {hoveredItem && (
+                    <button
+                      type="button"
+                      onClick={() => setHoveredItem(null)}
+                      className="text-xs font-medium text-slate-400 underline-offset-4 hover:text-slate-600 hover:underline"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
                 <p className="mt-2 text-sm text-slate-500">
                   {!hoveredItem
