@@ -3,11 +3,6 @@ import { createRequire } from "module";
 
 export const runtime = "nodejs";
 
-const require = createRequire(import.meta.url);
-// pdf-parse is a CommonJS module that exports a function
-// which accepts a Buffer and returns parsed data including `text`.
-const pdfParse = require("pdf-parse");
-
 type ReceiptItem = { name: string; price: number };
 type ReceiptSummary = {
   subtotal?: number;
@@ -88,9 +83,39 @@ export async function POST(request: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Use pdf-parse to extract text directly from the buffer
-    const result = await pdfParse(buffer);
-    const text = result?.text ?? "";
+    // Dynamically require pdf-parse at runtime to avoid bundling browser builds
+    const runtimeRequire = createRequire(import.meta.url);
+    const mod: any = runtimeRequire(["pdf", "-", "parse"].join(""));
+    let text = "";
+    if (typeof mod === "function") {
+      // v1: function API
+      const result = await mod(buffer);
+      text = result?.text ?? "";
+    } else if (mod && typeof mod.PDFParse === "function") {
+      // v2: class API — disable worker usage explicitly for server environments
+      try {
+        if (typeof mod.PDFParse.setWorker === "function") {
+          mod.PDFParse.setWorker("");
+        }
+      } catch {}
+      const parser = new mod.PDFParse({
+        data: buffer,
+        disableWorker: true,
+        isEvalSupported: false,
+        useWasm: false,
+        disableFontFace: true,
+      });
+      try {
+        const result = await parser.getText();
+        text = result?.text ?? "";
+      } finally {
+        if (typeof parser?.destroy === "function") {
+          await parser.destroy();
+        }
+      }
+    } else {
+      throw new Error("Unsupported pdf-parse export shape");
+    }
 
     const sanitized = sanitizeText(text ?? "");
 
