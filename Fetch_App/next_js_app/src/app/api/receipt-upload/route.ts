@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import pdf from "pdf-parse";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,43 +72,8 @@ function parseReceipt(text: string): { items: ReceiptItem[]; summary?: ReceiptSu
 }
 
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  // Primary path: use pdfjs directly and disable worker for serverless
-  try {
-    const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.js");
-    const task = pdfjs.getDocument({ data: buffer, disableWorker: true });
-    const doc = await task.promise;
-    let out = "";
-    for (let i = 1; i <= doc.numPages; i += 1) {
-      const page = await doc.getPage(i);
-      const content = await page.getTextContent();
-      const strings = (content.items || []).map((it: any) => it?.str || "");
-      out += strings.join(" ") + "\n";
-    }
-    return out;
-  } catch (e) {
-    // Fallback: try pdf-parse if available
-    try {
-      const mod: any = await import("pdf-parse");
-      const maybeFn = mod?.default ?? mod;
-      if (typeof maybeFn === "function") {
-        const res = await maybeFn(buffer);
-        return res?.text ?? "";
-      }
-      const PDFParseClass = mod?.PDFParse;
-      if (PDFParseClass) {
-        const parser = new PDFParseClass({ data: buffer });
-        try {
-          const res = await parser.getText();
-          return res?.text ?? "";
-        } finally {
-          try {
-            await parser.destroy();
-          } catch {}
-        }
-      }
-    } catch {}
-    throw e instanceof Error ? e : new Error(String(e));
-  }
+  const result: any = await pdf(buffer as unknown as Buffer);
+  return (result?.text ?? "").trim();
 }
 
 export async function POST(request: NextRequest) {
