@@ -4,9 +4,7 @@ import { createRequire } from "module";
 export const runtime = "nodejs";
 
 const require = createRequire(import.meta.url);
-// pdf-parse is a CommonJS module that exports a function
-// which accepts a Buffer and returns parsed data including `text`.
-const pdfParse = require("pdf-parse");
+const { PDFParse } = require("pdf-parse");
 
 type ReceiptItem = { name: string; price: number };
 type ReceiptSummary = {
@@ -87,10 +85,18 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    
+    // Instantiate the parser class with your buffer
+    const parser = new PDFParse({ data: buffer });
 
-    // Use pdf-parse to extract text directly from the buffer
-    const result = await pdfParse(buffer);
-    const text = result?.text ?? "";
+    let text = "";
+    try {
+      const res = await parser.getText();
+      text = res?.text ?? "";
+    } finally {
+      // clean up resources (important)
+      try { await parser.destroy(); } catch {}
+    }
 
     const sanitized = sanitizeText(text ?? "");
 
@@ -117,4 +123,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 

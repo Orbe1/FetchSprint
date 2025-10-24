@@ -1,7 +1,11 @@
 export type Message = {
   created_at: string;
-  text: string;
   sent_by: string;
+  // Support different DB schemas: prefer `text`, fallback to others
+  text?: string;
+  message?: string;
+  content?: string;
+  body?: string;
 };
 
 export interface ListOfMessages {

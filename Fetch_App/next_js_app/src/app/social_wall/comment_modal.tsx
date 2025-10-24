@@ -19,17 +19,14 @@ export default function CommentModal({
   if (!isModalOpen ) return null;
   return createPortal(
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-100">
-      <div
-        className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md "
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
+          <h2 className="text-xl font-semibold text-gray-800">
             Comments
           </h2>
           <button
             onClick={() => setIsModalOpen(false)}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            className="text-gray-500 hover:text-gray-700 transition-colors"
           >
             <X size={20} />
           </button>
@@ -38,27 +35,24 @@ export default function CommentModal({
         <div className="mb-6 max-h-[300px] overflow-y-auto">
           {comments && comments.length > 0 ? (
             comments.map((comment, index) => (
-              <div
-                key={index}
-                className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-              >
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {comment.author_name || ""}
+              <div key={index} className="mb-3 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-700">
+                  {comment.author_name ?? "Anonymous"}
                 </p>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-600">
                   {comment.post_content}
                 </p>
               </div>
             ))
           ) : (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-4">
+            <p className="text-gray-500 text-center py-4">
               No comments yet
             </p>
           )}
         </div>
 
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
-          <h3 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-2">
+        <div className="border-t border-gray-200 pt-4 mb-4">
+          <h3 className="text-md font-medium text-gray-800 mb-2">
             Add a Comment
           </h3>
           <Textarea
@@ -72,13 +66,12 @@ export default function CommentModal({
             <Button
               variant="outline"
               onClick={() => setIsModalOpen(false)}
-              className="hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="hover:bg-gray-100"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubmitComment}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               Submit
             </Button>

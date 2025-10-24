@@ -8,13 +8,8 @@ export const getAuthUser = async () => {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError) {
-    toast.error("Authentication error", {
-      description: authError.message,
-    });
-    return null;
-  }
-
+  // Do not toast on missing session; callers decide when to prompt
+  if (authError) return null;
   return user;
 };
 
@@ -179,12 +174,8 @@ export const getFormattedUser = async (
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError) {
-      toast.error("Authentication error", {
-        description: authError.message,
-      });
-      return null;
-    }
+    // Silent on missing session
+    if (authError) return null;
 
     if (!user) {
       return null;

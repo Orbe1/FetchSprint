@@ -6,12 +6,12 @@ import { toast } from "sonner";
 
 type Post = {
   id: string;
-  created_at: string;
-  author_id: string;
-  caption: string;
-  title: string;
-  author_name: string;
-  author_profile_pic?: string;
+  created_at: string | null;
+  title: string | null;
+  caption: string | null;
+  item_name: string | null;
+  video_url: string | null;
+  author_name: string | null;
 };
 
 export default function SocialWall() {
@@ -23,7 +23,9 @@ export default function SocialWall() {
     try {
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
-        .select("id, created_at, author_id, caption, title, author_name")
+        .select(
+          "id, created_at, title, caption, item_name, video_url, author_name"
+        )
         .order("created_at", { ascending: false });
 
       if (postsError) {
@@ -40,33 +42,7 @@ export default function SocialWall() {
         return;
       }
 
-      const authorIds = postsData.map((post) => post.author_id);
-      const { data: usersData, error: usersError } = await supabase
-        .from("users")
-        .select("id, profile_pic_url")
-        .in("id", authorIds);
-
-      if (usersError) {
-        toast.error("Error loading users", {
-          description: usersError.message,
-        });
-      }
-
-      const profilePicMap = new Map();
-      if (usersData) {
-        usersData.forEach((user) => {
-          if (user.profile_pic_url) {
-            profilePicMap.set(user.id, user.profile_pic_url);
-          }
-        });
-      }
-
-      const postsWithProfilePics = postsData.map((post) => ({
-        ...post,
-        author_profile_pic: profilePicMap.get(post.author_id) || undefined,
-      }));
-
-      setPosts(postsWithProfilePics);
+      setPosts(postsData as Post[]);
     } catch (error) {
       toast.error("An error occurred while loading posts", {
         description: error instanceof Error ? error.message : "Unknown error",
@@ -80,8 +56,10 @@ export default function SocialWall() {
     getPosts();
   }, []);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "";
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "";
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -92,9 +70,7 @@ export default function SocialWall() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-center">Social Wall</h1>
-
+    <div className="container mx-auto px-4 py-6">
       {loading ? (
         <div className="flex justify-center">
           <p className="text-gray-500">Loading posts...</p>

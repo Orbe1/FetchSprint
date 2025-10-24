@@ -5,6 +5,7 @@ import { uploadProfilePicture, getAuthUser } from "@/utility_methods/userUtils";
 import { supabase } from "@/app/utils/supabase/client";
 import { toast } from "sonner";
 import { useMemberInteractions } from "@/hooks/useMemberInteractions";
+import LoginButton from "@/components/ui/LoginLogoutButton";
 
 interface ProfileHeaderProps {
   profile: UserProfile;
@@ -85,7 +86,7 @@ export default function ProfileHeader({
     }
   };
   return (
-    <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-8 py-12">
+    <div className="bg-gradient-to-r from-fetch-accent to-fetch-primary px-8 py-12">
       <div className="flex flex-col items-center text-center">
         <div
           className={`relative mb-6 ${
@@ -130,9 +131,9 @@ export default function ProfileHeader({
             </div>
           ) : (
             <div className="relative">
-              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-gray-300 flex items-center justify-center">
                 <svg
-                  className="w-16 h-16 text-gray-500 dark:text-gray-400"
+                  className="w-16 h-16 text-gray-500"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -181,11 +182,17 @@ export default function ProfileHeader({
           />
         </div>
 
-        <h2 className="text-3xl font-bold text-white mb-2">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">
           {profile.displayName}
         </h2>
 
-        <p className="text-blue-100 text-lg mb-4">{profile.email}</p>
+        <p className="text-slate-700 text-lg mb-4">{profile.email}</p>
+
+        {isOwnProfile && (
+          <div className="mb-6">
+            <LoginButton />
+          </div>
+        )}
 
         {!isOwnProfile && (
           <div className="flex flex-col items-center space-y-3">
@@ -229,7 +236,7 @@ export default function ProfileHeader({
             </div>
 
             {userTimeZone?.time_zone && (
-              <div className="text-white bg-purple-700 bg-opacity-50 px-4 py-1 rounded-full text-sm flex items-center">
+              <div className="text-slate-900 bg-fetch-accent px-4 py-1 rounded-full text-sm flex items-center">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-4 w-4 mr-1"
@@ -246,7 +253,7 @@ export default function ProfileHeader({
                 </svg>
                 {userTimeZone.time_zone}
                 {userTimeZone.chronotype && (
-                  <span className="ml-2 bg-purple-800 px-2 py-0.5 rounded-full text-xs">
+                  <span className="ml-2 bg-fetch-primary text-white px-2 py-0.5 rounded-full text-xs">
                     {userTimeZone.chronotype === "early_bird"
                       ? "Early Bird"
                       : "Night Owl"}

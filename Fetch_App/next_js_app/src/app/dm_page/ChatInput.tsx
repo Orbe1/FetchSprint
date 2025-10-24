@@ -22,18 +22,38 @@ export default function ChatInput({
       return;
     }
 
-    const { error } = await supabase.from("messages").insert({
-      text,
-      sent_by: user.id,
-      conversation_id: convo_id,
-    });
+    const CANDIDATES = [
+      "conversation_id",
+      "convo_id",
+      "conversationId",
+      "dm_conversation_id",
+    ];
 
-    if (error) {
-      toast.error(`Error: ${error.message}`);
-    } else {
-      toast.success("Message sent!");
-      refreshMessages();
+    let sent = false;
+    let lastErr: any = null;
+    for (const col of CANDIDATES) {
+      const payload: Record<string, any> = {
+        text,
+        sent_by: user.id,
+      };
+      payload[col] = convo_id;
+      const { error } = await supabase.from("messages").insert(payload);
+      if (!error) {
+        sent = true;
+        break;
+      }
+      lastErr = error;
     }
+
+    if (!sent) {
+      toast.error("Error sending message", {
+        description: lastErr?.message ?? "Unknown error",
+      });
+      return;
+    }
+
+    toast.success("Message sent!");
+    refreshMessages();
   };
 
   return (

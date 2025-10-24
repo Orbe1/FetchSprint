@@ -1,6 +1,6 @@
 import { UserProfile } from "@/types/types";
-import SkillSection from "./SkillSection";
-import HomeButton from "@/components/homeButton";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 interface ProfileContentProps {
   profile: UserProfile;
@@ -13,30 +13,17 @@ export default function ProfileContent({
 }: ProfileContentProps) {
   return (
     <div className="px-8 py-8">
-      <div className="grid md:grid-cols-2 gap-8">
-        <SkillSection
-          title="Teaching Skills"
-          skills={profile.teachingSkills}
-          icon="teaching"
-          emptyMessage="No teaching skills added yet"
-          isOwnProfile={isOwnProfile}
-          userId={profile.id}
-          skillType="teach"
-        />
-
-        <SkillSection
-          title="Learning Skills"
-          skills={profile.learningSkills}
-          icon="learning"
-          emptyMessage="No learning skills added yet"
-          isOwnProfile={isOwnProfile}
-          userId={profile.id}
-          skillType="learn"
-        />
+      <div className="rounded-2xl border border-orange-100 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-slate-900">About</h3>
+        <p className="mt-2 text-sm text-slate-600">
+          Welcome to your profile. More details coming soon.
+        </p>
       </div>
 
-      <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-        <HomeButton />
+      <div className="mt-8 flex justify-center">
+        <Button asChild>
+          <Link href="/dm_page">Friends</Link>
+        </Button>
       </div>
     </div>
   );

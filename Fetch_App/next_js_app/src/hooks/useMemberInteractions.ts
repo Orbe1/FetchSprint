@@ -84,14 +84,31 @@ export function useMemberInteractions(memberId: string) {
 
             const iceBreaker = `How did you first get into ${randomSkill}?`;
 
-            const { error } = await supabase.from("messages").insert({
-              text: iceBreaker,
-              sent_by: user?.id,
-              conversation_id: convoId,
-            });
+            const CANDIDATES = [
+              "conversation_id",
+              "convo_id",
+              "conversationId",
+              "dm_conversation_id",
+            ];
 
-            if (error) {
-              toast.error(`Error sending ice breaker: ${error.message}`);
+            let delivered = false;
+            let lastErr: any = null;
+            for (const col of CANDIDATES) {
+              const payload: Record<string, any> = {
+                text: iceBreaker,
+                sent_by: user?.id,
+              };
+              payload[col] = convoId;
+              const { error } = await supabase.from("messages").insert(payload);
+              if (!error) {
+                delivered = true;
+                break;
+              }
+              lastErr = error;
+            }
+
+            if (!delivered) {
+              toast.error(`Error sending ice breaker: ${lastErr?.message ?? "Unknown error"}`);
             }
           }
         } catch (error) {

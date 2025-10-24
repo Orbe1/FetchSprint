@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login, signInWithGithub } from "@/supabase-actions/auth-actions";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import supabase from "@/app/utils/supabase/client";
 import { toast } from "sonner";
@@ -13,6 +13,8 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"form">) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next");
   const supabaseClient = supabase();
 
   const [logInData, setLogInData] = useState({
@@ -20,14 +22,7 @@ export function LoginForm({
     password: "",
   });
 
-  const userHasCompletedOnboarding = async () => {
-    const { data, error } = await supabaseClient
-      .from("users")
-      .select("completed_onboarding")
-      .eq("email", logInData.email);
-    const isCompleted = data?.[0]?.completed_onboarding;
-    return isCompleted;
-  };
+  // Onboarding questionnaire removed — route all successful logins to feed
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -40,10 +35,8 @@ export function LoginForm({
       toast.error("Login failed", {
         description: error.message,
       });
-    } else if (await userHasCompletedOnboarding()) {
-      router.push("/feed");
     } else {
-      router.push("/new_user");
+      router.push(next ?? "/feed");
     }
   };
 

@@ -37,6 +37,8 @@ type SearchOptions = {
   finalCount?: number;
   regionCode?: string;
   allowRelevanceFallback?: boolean;
+  relevanceLanguage?: string;
+  englishOnly?: boolean;
 };
 
 const YOUTUBE_SEARCH_ENDPOINT = "https://www.googleapis.com/youtube/v3/search";
@@ -97,6 +99,7 @@ async function searchVideos(
   if (options.regionCode) {
     params.set("regionCode", options.regionCode);
   }
+  params.set("relevanceLanguage", options.relevanceLanguage ?? "en");
 
   const response = await fetch(`${YOUTUBE_SEARCH_ENDPOINT}?${params}`, {
     signal,
@@ -136,9 +139,16 @@ async function searchVideos(
     return video;
   }) ?? [];
 
-  let results = uniqueById(
-    shuffle(mapped.filter((video): video is TrendVideo => video !== null))
-  );
+  const base = mapped.filter((video): video is TrendVideo => video !== null);
+  const filtered = options.englishOnly
+    ? base.filter((v) => {
+        const text = `${v.title} ${v.description}`;
+        const letters = text.replace(/\s+/g, "").length;
+        const latin = text.replace(/[^A-Za-z]/g, "").length;
+        return letters === 0 ? true : latin / letters >= 0.6;
+      })
+    : base;
+  let results = uniqueById(shuffle(filtered));
 
   if (results.length === 0 && options.allowRelevanceFallback) {
     params.set("order", "relevance");
@@ -229,11 +239,15 @@ export async function GET(request: NextRequest) {
         daysBack: 10,
         regionCode,
         allowRelevanceFallback: true,
+        relevanceLanguage: "en",
+        englishOnly: true,
       }),
       searchVideos(query, "long", apiKey, controller.signal, {
         daysBack: 30,
         regionCode,
         allowRelevanceFallback: true,
+        relevanceLanguage: "en",
+        englishOnly: true,
       }),
     ]);
 
@@ -250,6 +264,8 @@ export async function GET(request: NextRequest) {
             daysBack: 45,
             regionCode,
             allowRelevanceFallback: true,
+            relevanceLanguage: "en",
+            englishOnly: true,
           });
 
     return NextResponse.json({

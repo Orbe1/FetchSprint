@@ -1,43 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/app/utils/supabase/client";
+import createServerClient from "@/app/utils/supabase/server";
+import type { EmailOtpType } from "@supabase/supabase-js";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const token_hash = searchParams.get("token_hash");
+  const typeParam = searchParams.get("type") as EmailOtpType | null;
   const next = searchParams.get("next") ?? "/";
 
-  if (code) {
-    try {
-      const { error: _error } = await supabase.auth.exchangeCodeForSession(
-        code
-      );
+  // Helper to build a redirect with best-effort host handling
+  const redirectTo = (path: string) => {
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const isLocalEnv = process.env.NODE_ENV === "development";
+    if (isLocalEnv) return NextResponse.redirect(`${origin}${path}`);
+    if (forwardedHost) return NextResponse.redirect(`https://${forwardedHost}${path}`);
+    return NextResponse.redirect(`${origin}${path}`);
+  };
 
-      if (!_error) {
-        const forwardedHost = request.headers.get("x-forwarded-host");
-        const isLocalEnv = process.env.NODE_ENV === "development";
+  try {
+    const supabase = await createServerClient();
 
-        if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}${next}`);
-        } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${next}`);
-        } else {
-          return NextResponse.redirect(`${origin}${next}`);
-        }
-      } else {
-        return NextResponse.redirect(
-          `${origin}/error?message=${encodeURIComponent(_error.message)}`
-        );
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        return redirectTo(`/error?message=${encodeURIComponent(error.message)}`);
       }
-    } catch (_error) {
-      return NextResponse.redirect(
-        `${origin}/error?message=${encodeURIComponent("Authentication failed")}`
-      );
+      // If the link was a password recovery using the code flow, steer to reset UI
+      if (typeParam === "recovery") {
+        return redirectTo(`/reset-password`);
+      }
+      return redirectTo(next);
     }
-  }
 
-  return NextResponse.redirect(
-    `${origin}/error?message=${encodeURIComponent(
-      "No authorization code provided"
-    )}`
-  );
+    // Support legacy token_hash links (verifyOtp)
+    if (token_hash && typeParam) {
+      const { error } = await supabase.auth.verifyOtp({
+        type: typeParam,
+        token_hash,
+      });
+      if (error) {
+        return redirectTo(`/error?message=${encodeURIComponent(error.message)}`);
+      }
+      if (typeParam === "recovery") {
+        return redirectTo(`/reset-password`);
+      }
+      return redirectTo(next);
+    }
+
+    return redirectTo(
+      `/error?message=${encodeURIComponent("No authorization parameters provided")}`
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Authentication failed";
+    return redirectTo(`/error?message=${encodeURIComponent(msg)}`);
+  }
 }

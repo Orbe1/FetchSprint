@@ -19,24 +19,42 @@ export default function ListMessages({ messages }: ListOfMessages) {
 
   useEffect(() => {
     const fetchUserDataForMessages = async () => {
-      const userIds = messages.map((message) => message.sent_by);
+      if (!messages || messages.length === 0) {
+        setUserData({});
+        return;
+      }
+
+      const userIds = Array.from(
+        new Set(
+          messages
+            .map((m) => m.sent_by)
+            .filter((id): id is string => typeof id === "string" && id.length > 0)
+        )
+      );
+
+      if (userIds.length === 0) {
+        setUserData({});
+        return;
+      }
+
       const { data, error } = await supabase
         .from("users")
         .select("id, display_name, profile_pic_url")
         .in("id", userIds);
 
       if (error) {
-        alert("Error Fetching User Data");
-        return [];
+        console.error("Failed to fetch user data", error);
+        return;
       }
-      const userDataMap = data.reduce(
+
+      const userDataMap = (data ?? []).reduce(
         (
           acc: { [key: string]: { name: string; profilePic?: string } },
-          user
+          user: any
         ) => {
           acc[user.id] = {
-            name: user.display_name,
-            profilePic: user.profile_pic_url,
+            name: user.display_name ?? "Anonymous",
+            profilePic: user.profile_pic_url ?? undefined,
           };
           return acc;
         },
@@ -54,6 +72,9 @@ export default function ListMessages({ messages }: ListOfMessages) {
       <div className="flex-1"></div>
       <div className="space-y-7">
         {messages.map((message, index) => {
+          const msg: any = message as any;
+          const content: string =
+            msg.text ?? msg.message ?? msg.content ?? msg.body ?? "";
           return (
             <div key={index} className="flex gap-2">
               <div className="h-10 w-10 rounded-full overflow-hidden">
@@ -81,7 +102,7 @@ export default function ListMessages({ messages }: ListOfMessages) {
                     {new Date(message.created_at).toDateString()}
                   </h1>
                 </div>
-                <p className="text-gray-300">{message.text}</p>
+                <p className="text-gray-300">{content}</p>
               </div>
             </div>
           );

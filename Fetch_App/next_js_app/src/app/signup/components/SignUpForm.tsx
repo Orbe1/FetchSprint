@@ -29,16 +29,17 @@ export function SignUpForm() {
     e.preventDefault();
     const supabaseClient = supabase();
 
-    const { data: signUpData, error: signUpError } =
-      await supabaseClient.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-        options: {
-          data: {
-            user_name: userData.display_name,
-          },
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
+      email: userData.email,
+      password: userData.password,
+      options: {
+        emailRedirectTo: redirectTo,
+        data: {
+          user_name: userData.display_name,
         },
-      });
+      },
+    });
 
     if (signUpError) {
       toast.error("Sign up failed", {

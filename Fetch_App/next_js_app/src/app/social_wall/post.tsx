@@ -4,23 +4,25 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/app/utils/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 type Post = {
   id: string;
-  created_at: string;
-  author_id: string;
-  caption: string;
-  title: string;
-  author_name: string;
-  author_profile_pic?: string;
+  created_at: string | null;
+  title: string | null;
+  caption: string | null;
+  item_name: string | null;
+  video_url: string | null;
+  author_name: string | null;
 };
 
 interface PostProps {
   post: Post;
-  formatDate: (dateString: string) => string;
+  formatDate: (dateString: string | null) => string;
 }
 
 export default function PostCard({ post, formatDate }: PostProps) {
+  const router = useRouter();
   const [showAllComments, setShowAllComments] = useState(false);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -29,6 +31,8 @@ export default function PostCard({ post, formatDate }: PostProps) {
   >([]);
   const [isAlreadyLiked, setIsAlreadyLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const authorLabel = (post.author_name ?? "Anonymous").trim();
+  const authorInitial = authorLabel ? authorLabel[0]!.toUpperCase() : "?";
   const getUser = async () => {
     try {
       const {
@@ -37,17 +41,13 @@ export default function PostCard({ post, formatDate }: PostProps) {
       } = await supabase.auth.getUser();
 
       if (error) {
-        toast.error("Authentication error", {
-          description: error.message,
-        });
+        // Silent on missing/invalid session; actions will handle prompts
         return null;
       }
 
       return user;
     } catch (error) {
-      toast.error("Authentication error", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
+      // Avoid global popups on read-only load
       return null;
     }
   };
@@ -56,19 +56,23 @@ export default function PostCard({ post, formatDate }: PostProps) {
       const user = await getUser();
 
       if (!user) {
-        toast.error("Authentication required", {
-          description: "You must be logged in to comment",
-        });
+        const nextPath = typeof window !== "undefined" ? window.location.pathname : "/feed";
+        router.push(`/login?next=${encodeURIComponent(nextPath)}`);
         return;
       }
 
+      const commentPayload: any = {
+        post_id: post.id,
+        author_id: user.id,
+        post_content: commentText,
+      };
+      const displayName = user.user_metadata?.user_name as string | undefined;
+      if (displayName && displayName.trim()) {
+        commentPayload.author_name = displayName.trim();
+      }
+
       const { error } = await supabase.from("post_comments").upsert([
-        {
-          post_id: post.id,
-          author_id: user.id,
-          post_content: commentText,
-          author_name: user.user_metadata.user_name,
-        },
+        commentPayload,
       ]);
 
       if (error) {
@@ -180,9 +184,8 @@ export default function PostCard({ post, formatDate }: PostProps) {
       const user = await getUser();
 
       if (!user) {
-        toast.error("Authentication required", {
-          description: "You must be logged in to like posts",
-        });
+        const nextPath = typeof window !== "undefined" ? window.location.pathname : "/feed";
+        router.push(`/login?next=${encodeURIComponent(nextPath)}`);
         return;
       }
 
@@ -230,40 +233,47 @@ export default function PostCard({ post, formatDate }: PostProps) {
       onDoubleClick={handleLike}
     >
       <div className="flex items-center p-4 border-b border-gray-100">
-        {post.author_profile_pic ? (
-          <div className="h-10 w-10 rounded-full flex-shrink-0 overflow-hidden">
-            <img
-              src={post.author_profile_pic}
-              alt={`${post.author_name}'s profile`}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ) : (
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0 flex items-center justify-center text-white font-bold">
-            {post.author_name.substring(0, 1).toUpperCase()}
-          </div>
-        )}
-        <div className="ml-3">
-          <p className="font-medium text-sm text-gray-700">
-            {post.author_name.substring(0, 6)}
+        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0 flex items-center justify-center text-white font-bold">
+          {authorInitial}
+        </div>
+        <div className="ml-3 min-w-0">
+          <p className="font-medium text-sm text-gray-700 truncate" title={authorLabel}>
+            {authorLabel.slice(0, 40)}
           </p>
           <p className="text-xs text-gray-400">{formatDate(post.created_at)}</p>
         </div>
       </div>
 
-      {post.title && (
+      {post.title ? (
         <div className="px-4 pt-4">
           <h2 className="font-bold text-xl text-gray-800 leading-tight">
             {post.title}
           </h2>
           <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded mt-2"></div>
         </div>
-      )}
+      ) : null}
 
-      <div className="p-4">
-        {post.caption && (
-          <p className="text-gray-600 leading-relaxed">{post.caption}</p>
-        )}
+      <div className="p-4 space-y-2">
+        {post.caption ? (
+          <p className="text-gray-600 leading-relaxed whitespace-pre-wrap break-words">
+            {post.caption}
+          </p>
+        ) : null}
+
+        {post.item_name ? (
+          <p className="text-xs text-gray-500">Item: {post.item_name}</p>
+        ) : null}
+
+        {post.video_url ? (
+          <a
+            href={post.video_url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-block text-sm font-medium text-indigo-600 hover:underline"
+          >
+            Watch video
+          </a>
+        ) : null}
       </div>
 
       <div className="px-4 py-3 border-t border-gray-100">
@@ -284,7 +294,15 @@ export default function PostCard({ post, formatDate }: PostProps) {
             variant="ghost"
             size="sm"
             className="flex items-center space-x-1 text-gray-600 hover:text-blue-500"
-            onClick={() => {
+            onClick={async () => {
+              const {
+                data: { user },
+              } = await supabase.auth.getUser();
+              if (!user) {
+                const nextPath = typeof window !== "undefined" ? window.location.pathname : "/feed";
+                router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+                return;
+              }
               getComments();
               setShowCommentInput(!showCommentInput);
             }}
@@ -304,7 +322,7 @@ export default function PostCard({ post, formatDate }: PostProps) {
                 (comment, index) => (
                   <div key={index} className="mb-3 p-3 bg-gray-50 rounded-lg">
                     <p className="text-sm font-medium text-gray-700">
-                      {comment.author_name || ""}
+                      {comment.author_name ?? "Anonymous"}
                     </p>
                     <p className="text-gray-600">{comment.post_content}</p>
                   </div>

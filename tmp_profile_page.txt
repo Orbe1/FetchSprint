@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/app/utils/supabase/client";
 import { getAuthUser } from "@/utility_methods/userUtils";
 import { UserProfile } from "@/types/types";
@@ -11,20 +12,56 @@ import LoadingState from "./components/LoadingState";
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isOwnProfile, setIsOwnProfile] = useState<boolean>(true);
-  const [noTarget, setNoTarget] = useState<boolean>(false);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       const user = await getAuthUser();
-      const searchParams = new URLSearchParams(window.location.search);
-      const profileId = searchParams.get("id");
-      const targetUserId = profileId || user?.id || null;
-      const isCurrentUserProfile = !!user && (!profileId || profileId === user.id);
-      setIsOwnProfile(isCurrentUserProfile);
-      if (!targetUserId) {
-        setNoTarget(true);
+
+      if (!user) {
+        router.push("/login");
         return;
       }
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const profileId = searchParams.get("id");
+      const targetUserId = profileId || user.id;
+      const isCurrentUserProfile = !profileId || profileId === user.id;
+      setIsOwnProfile(isCurrentUserProfile);
+
+      // Fetch skills, defaulting to [] on error
+      const { data: skillsData, error: skillsError } = await supabase
+        .from("user_skills")
+        .select("skill, type, level")
+        .eq("user_id", targetUserId);
+
+      const rawSkills = skillsError ? [] : skillsData ?? [];
+      const teachingSkillsSet = new Set<string>();
+      const learningSkillsSet = new Set<string>();
+
+      const teachingSkills = rawSkills
+        .filter((skill: any) =>
+          skill &&
+          skill.type === "teach" &&
+          !teachingSkillsSet.has(skill.skill) &&
+          teachingSkillsSet.add(skill.skill)
+        )
+        .map((skill: any) => ({
+          skill: skill.skill,
+          level: skill.level || 1,
+        }));
+
+      const learningSkills = rawSkills
+        .filter((skill: any) =>
+          skill &&
+          skill.type === "learn" &&
+          !learningSkillsSet.has(skill.skill) &&
+          learningSkillsSet.add(skill.skill)
+        )
+        .map((skill: any) => ({
+          skill: skill.skill,
+          level: skill.level || 1,
+        }));
 
       // Fetch user row, but allow missing row and fall back to auth metadata
       const { data: targetUserData } = await supabase
@@ -35,18 +72,18 @@ export default function ProfilePage() {
 
       setProfile({
         email: isCurrentUserProfile
-          ? user?.email || targetUserData?.email || ""
+          ? user.email || targetUserData?.email || ""
           : targetUserData?.email || "",
         displayName:
           targetUserData?.display_name ||
-          (isCurrentUserProfile ? user?.user_metadata?.user_name : "") ||
+          (isCurrentUserProfile ? user.user_metadata?.user_name : "") ||
           "User",
         profilePicture:
           targetUserData?.profile_pic_url ||
-          (isCurrentUserProfile ? user?.user_metadata?.avatar_url : undefined),
+          (isCurrentUserProfile ? user.user_metadata?.avatar_url : undefined),
         id: targetUserId,
-        teachingSkills: [],
-        learningSkills: [],
+        teachingSkills,
+        learningSkills,
       });
     };
 
@@ -54,15 +91,6 @@ export default function ProfilePage() {
   }, []);
 
   if (!profile) {
-    if (noTarget) {
-      return (
-        <ProfileLayout>
-          <div className="p-8 text-center text-slate-600">
-            Please log in to view your profile or open a member profile link.
-          </div>
-        </ProfileLayout>
-      );
-    }
     return <LoadingState />;
   }
 
@@ -73,3 +101,4 @@ export default function ProfilePage() {
     </ProfileLayout>
   );
 }
+
