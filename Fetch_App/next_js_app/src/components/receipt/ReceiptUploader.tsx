@@ -58,7 +58,8 @@ export default function ReceiptUploader() {
       return;
     }
     const formData = new FormData();
-    formData.append("receipt", selectedFile);
+    // Use 'file' to align with the API route; keep backward compat if needed
+    formData.append("file", selectedFile);
     setStatus("uploading");
     setMessage("");
     try {
