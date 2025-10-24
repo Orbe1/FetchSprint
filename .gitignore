@@ -5,3 +5,5 @@ node_modules
 .env.*
 next-env.d.ts
 Fetch_App/.DS_Store
+
+.vercel
