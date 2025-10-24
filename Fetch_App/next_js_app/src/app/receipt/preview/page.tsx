@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import supabase from "@/app/utils/supabase/client";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 
 type ReceiptItem = {
@@ -81,9 +83,10 @@ const formatPublishedDate = (isoDate: string) => {
   }
 };
 
-export default function ReceiptPreviewPage() {
+function ReceiptPreviewContent() {
   const searchParams = useSearchParams();
   const receiptId = searchParams.get("id");
+  const router = useRouter();
 
   const [receipt, setReceipt] = useState<ReceiptUploadResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -96,6 +99,39 @@ export default function ReceiptPreviewPage() {
   const [trendsError, setTrendsError] = useState<string | null>(null);
   const trendsCacheRef = useRef<Map<string, TrendsPayload>>(new Map());
   const pendingRequestRef = useRef<AbortController | null>(null);
+  const aiCaptionCacheRef = useRef<Map<string, string>>(new Map());
+  const [aiCaptions, setAiCaptions] = useState<Record<string, string>>({});
+  const [captionLoading, setCaptionLoading] = useState<Record<string, boolean>>({});
+
+  const getAICaption = useCallback(
+    async (video: TrendVideo, contextItem?: string) => {
+      const cached = aiCaptionCacheRef.current.get(video.id);
+      if (cached) return cached;
+      if (captionLoading[video.id]) return "";
+      try {
+        setCaptionLoading((s) => ({ ...s, [video.id]: true }));
+        const subject = contextItem ? `${contextItem} — ${video.title}` : video.title;
+        const res = await fetch("/api/ai-captions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemName: subject }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "AI caption failed");
+        const caption = String(data.caption || "").trim();
+        if (caption) {
+          aiCaptionCacheRef.current.set(video.id, caption);
+          setAiCaptions((prev) => ({ ...prev, [video.id]: caption }));
+        }
+        return caption;
+      } catch (e) {
+        return "";
+      } finally {
+        setCaptionLoading((s) => ({ ...s, [video.id]: false }));
+      }
+    },
+    [captionLoading]
+  );
 
   useEffect(() => {
     if (!receiptId) {
@@ -147,29 +183,61 @@ export default function ReceiptPreviewPage() {
     }));
   }, [receipt]);
 
-  const renderVideoCard = (video: TrendVideo, variant: "short" | "long") => {
+  const renderVideoCard = (
+    video: TrendVideo,
+    variant: "short" | "long",
+    refItemName?: string | null
+  ) => {
     const badgeStyles =
       variant === "short"
         ? "bg-rose-100/90 text-rose-700 border border-rose-200"
         : "bg-slate-100/90 text-slate-700 border border-slate-200";
 
+    const shareParams = new URLSearchParams({
+      vId: video.id,
+      vTitle: video.title,
+      vUrl: video.url,
+      vThumb: video.thumbnail ?? "",
+      vChannel: video.channelTitle,
+    });
+    if (refItemName) {
+      shareParams.set("refItem", refItemName);
+    }
+
+    const handleShare = async () => {
+      try {
+        const { data, error } = await supabase().auth.getUser();
+        // If a caption is already available, include it; do not auto-generate here
+        const existing =
+          aiCaptionCacheRef.current.get(video.id) || aiCaptions[video.id];
+        if (existing) shareParams.set("vCaption", existing);
+        const target = `/create_post?${shareParams.toString()}`;
+        if (error || !data?.user) {
+          router.push(`/login?next=${encodeURIComponent(target)}`);
+          return;
+        }
+        router.push(target);
+      } catch (e) {
+        router.push(`/login?next=${encodeURIComponent(`/create_post?${shareParams.toString()}`)}`);
+      }
+    };
+
     return (
-      <a
+      <div
         key={video.id}
-        href={video.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+        className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
       >
         <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-200">
           {video.thumbnail ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={video.thumbnail}
-              alt={video.title}
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
+            <a href={video.url} target="_blank" rel="noopener noreferrer">
+              <img
+                src={video.thumbnail}
+                alt={video.title}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </a>
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
               No preview available
@@ -183,7 +251,7 @@ export default function ReceiptPreviewPage() {
           </span>
         </div>
 
-        <div className="mt-3 space-y-1">
+        <div className="mt-3 space-y-2">
           <p
             className="text-sm font-semibold text-slate-900"
             title={video.title}
@@ -196,11 +264,31 @@ export default function ReceiptPreviewPage() {
           >
             {video.channelTitle}
           </p>
+          {aiCaptions[video.id] && (
+            <p className="text-sm text-slate-700 italic">{aiCaptions[video.id]}</p>
+          )}
           <p className="text-[11px] text-slate-400">
             {formatPublishedDate(video.publishedAt)}
           </p>
+          <div className="pt-1 flex gap-2">
+            <button
+              type="button"
+              disabled={captionLoading[video.id]}
+              onClick={() => void getAICaption(video, refItemName ?? undefined)}
+              className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              {captionLoading[video.id] ? "Loading..." : "Learn more"}
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-indigo-700"
+            >
+              Share
+            </button>
+          </div>
         </div>
-      </a>
+      </div>
     );
   };
 
@@ -294,12 +382,12 @@ export default function ReceiptPreviewPage() {
   const panelVisible = Boolean(hoveredItem);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
-      <header className="border-b border-white/10 bg-slate-950/70 backdrop-blur">
+    <div className="min-h-screen bg-[var(--background)] text-slate-900">
+      <header className="border-b border-orange-100 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
           <Link
             href="/"
-            className="text-lg font-semibold tracking-tight text-white"
+            className="text-lg font-semibold tracking-tight text-[var(--primary)]"
           >
             FetchSprint
           </Link>
@@ -307,13 +395,12 @@ export default function ReceiptPreviewPage() {
             <Button
               asChild
               variant="outline"
-              className="border-white/30 bg-white/10 text-white hover:bg-white/20"
             >
               <Link href="/">Upload another receipt</Link>
             </Button>
             <Button
               asChild
-              className="bg-white text-slate-900 hover:bg-slate-200"
+              
             >
               <Link href="/feed">Go to feed</Link>
             </Button>
@@ -368,10 +455,10 @@ export default function ReceiptPreviewPage() {
                   </p>
                 </div>
                 {receipt.summary && (
-                  <div className="grid grid-cols-3 gap-4 rounded-2xl border border-white/10 bg-white/10 p-4 text-right text-xs text-white/70">
+                  <div className="grid grid-cols-3 gap-4 rounded-2xl border border-orange-100 bg-white p-4 text-right text-xs text-slate-500">
                     <div>
                       <p>Subtotal</p>
-                      <p className="mt-1 text-base font-semibold text-white">
+                      <p className="mt-1 text-base font-semibold text-slate-900">
                         {formatCurrency(
                           receipt.summary.subtotal,
                           receipt.summary.currency
@@ -380,7 +467,7 @@ export default function ReceiptPreviewPage() {
                     </div>
                     <div>
                       <p>Tax</p>
-                      <p className="mt-1 text-base font-semibold text-white">
+                      <p className="mt-1 text-base font-semibold text-slate-900">
                         {formatCurrency(
                           receipt.summary.tax,
                           receipt.summary.currency
@@ -389,7 +476,7 @@ export default function ReceiptPreviewPage() {
                     </div>
                     <div>
                       <p>Total</p>
-                      <p className="mt-1 text-base font-semibold text-emerald-300">
+                      <p className="mt-1 text-base font-semibold text-emerald-600">
                         {formatCurrency(
                           receipt.summary.total,
                           receipt.summary.currency
@@ -400,7 +487,7 @@ export default function ReceiptPreviewPage() {
                 )}
               </div>
 
-              <div className="space-y-2 rounded-2xl border border-white/10 bg-slate-950/60 p-6">
+              <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-6">
                 {receiptLines.map((line, index) => {
                   const lower = line.toLowerCase();
                   const itemMatch = indexedItems.find(({ normalizedName }) =>
@@ -442,7 +529,7 @@ export default function ReceiptPreviewPage() {
                   return (
                     <p
                       key={`line-${index}`}
-                      className="font-mono text-sm text-white/80 whitespace-pre"
+                      className="font-mono text-sm text-slate-600 whitespace-pre"
                     >
                       {displayLine}
                     </p>
@@ -529,7 +616,9 @@ export default function ReceiptPreviewPage() {
                           <div className="mt-3 space-y-4">
                             {trends.shorts
                               .slice(0, TREND_SKELETON_COUNT)
-                              .map((video) => renderVideoCard(video, "short"))}
+                              .map((video) =>
+                                renderVideoCard(video, "short", hoveredItem?.name ?? null)
+                              )}
                           </div>
                         ) : (
                           <p className="mt-3 text-xs text-slate-400">
@@ -551,7 +640,9 @@ export default function ReceiptPreviewPage() {
                           <div className="mt-3 space-y-4">
                             {trends.longForm
                               .slice(0, TREND_SKELETON_COUNT)
-                              .map((video) => renderVideoCard(video, "long"))}
+                              .map((video) =>
+                                renderVideoCard(video, "long", hoveredItem?.name ?? null)
+                              )}
                           </div>
                         ) : (
                           <p className="mt-3 text-xs text-slate-400">
@@ -575,3 +666,13 @@ export default function ReceiptPreviewPage() {
     </div>
   );
 }
+
+export default function ReceiptPreviewPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-slate-400">Loading preview...</div>}>
+      <ReceiptPreviewContent />
+    </Suspense>
+  );
+}
+
+
