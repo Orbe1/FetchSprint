@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createRequire } from "module";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+
+const require = createRequire(import.meta.url);
+// pdf-parse is a CommonJS module that exports a function
+// which accepts a Buffer and returns parsed data including `text`.
+const pdfParse = require("pdf-parse");
 
 type ReceiptItem = { name: string; price: number };
 type ReceiptSummary = {
@@ -70,37 +74,24 @@ function parseReceipt(text: string): { items: ReceiptItem[]; summary?: ReceiptSu
   return { items, summary: Object.keys(summary).length ? summary : undefined };
 }
 
-async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  const mod: any = await import("pdf-parse");
-  const pdfParse = mod?.default ?? mod;
-  const res = await pdfParse(buffer);
-  return (res?.text || "").trim();
-}
-
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = (formData.get("receipt") ?? formData.get("file")) as File | null;
+    const file = (formData.get("file") ?? formData.get("receipt")) as File | null;
 
     if (!(file instanceof File)) {
-      return NextResponse.json(
-        { error: "Please upload a PDF receipt." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Please upload a PDF receipt." }, { status: 400 });
     }
-    const isPdfMime = file.type === "application/pdf";
-    const isPdfExt = file.name?.toLowerCase().endsWith(".pdf");
-    if (!(isPdfMime || isPdfExt)) {
-      return NextResponse.json(
-        { error: "Only PDF uploads are supported." },
-        { status: 415 }
-      );
+    if (file.type !== "application/pdf") {
+      return NextResponse.json({ error: "Only PDF uploads are supported." }, { status: 415 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Extract text from PDF
-    const text = await extractTextFromPdf(buffer);
+    // Use pdf-parse to extract text directly from the buffer
+    const result = await pdfParse(buffer);
+    const text = result?.text ?? "";
+
     const sanitized = sanitizeText(text ?? "");
 
     if (!sanitized) {
@@ -112,7 +103,6 @@ export async function POST(request: NextRequest) {
 
     const { items, summary } = parseReceipt(sanitized);
     return NextResponse.json({
-      ok: true,
       name: file.name,
       size: file.size,
       receiptText: sanitized,
@@ -120,11 +110,11 @@ export async function POST(request: NextRequest) {
       summary,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
     console.error("Receipt upload failed", error);
     return NextResponse.json(
-      { error: "Unexpected error while processing upload.", message },
+      { error: "Unexpected error while processing upload." },
       { status: 500 }
     );
   }
 }
+
