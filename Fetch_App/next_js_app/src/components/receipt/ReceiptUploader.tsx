@@ -114,11 +114,11 @@ export default function ReceiptUploader() {
 
       <form onSubmit={handleUpload} className="mt-8 space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="receipt">Receipt PDF</Label>
+          <Label htmlFor="file">Receipt PDF</Label>
           <Input
             ref={fileInputRef}
-            id="receipt"
-            name="receipt"
+            id="file"
+            name="file"
             type="file"
             accept="application/pdf"
             onChange={handleFileChange}
