@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import pdf from "pdf-parse";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,8 +71,10 @@ function parseReceipt(text: string): { items: ReceiptItem[]; summary?: ReceiptSu
 }
 
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  const result: any = await pdf(buffer as unknown as Buffer);
-  return (result?.text ?? "").trim();
+  const mod: any = await import("pdf-parse");
+  const pdfParse = mod?.default ?? mod;
+  const res = await pdfParse(buffer);
+  return (res?.text || "").trim();
 }
 
 export async function POST(request: NextRequest) {
@@ -87,7 +88,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (file.type !== "application/pdf") {
+    const isPdfMime = file.type === "application/pdf";
+    const isPdfExt = file.name?.toLowerCase().endsWith(".pdf");
+    if (!(isPdfMime || isPdfExt)) {
       return NextResponse.json(
         { error: "Only PDF uploads are supported." },
         { status: 415 }
@@ -109,6 +112,7 @@ export async function POST(request: NextRequest) {
 
     const { items, summary } = parseReceipt(sanitized);
     return NextResponse.json({
+      ok: true,
       name: file.name,
       size: file.size,
       receiptText: sanitized,
