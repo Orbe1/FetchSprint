@@ -2,7 +2,7 @@ AI Receipt Scanner — Next.js (Serverless‑safe)
 
 Live: https://fetch-sprint.vercel.app
 
-Demo (90s): https://drive.google.com/file/d/178vJ8fPFMzFauE2_I_5Jf0OMJxsuL2au/view?usp=sharing
+Demo Vid: https://drive.google.com/file/d/178vJ8fPFMzFauE2_I_5Jf0OMJxsuL2au/view?usp=sharing
 
 Code: https://github.com/Orbe1/FetchSprint
 
