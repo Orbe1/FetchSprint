@@ -1,13 +1,10 @@
+// app/api/receipt-upload/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createRequire } from "module";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-// Statically require pdf-parse so Vercel bundles it with the function (v1 function API)
-const require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParse = require("pdf-parse");
-
+// ---- Types & helpers (unchanged) ----
 type ReceiptItem = { name: string; price: number };
 type ReceiptSummary = {
   subtotal?: number;
@@ -23,7 +20,6 @@ const sanitizeText = (text: string) =>
     .replace(/\t/g, "    ")
     .trim();
 
-// Simple patterns for matching receipt lines like:
 // "Milk $3.49", "Subtotal $22.65", "Tax (8%) $1.81", "TOTAL $24.46"
 const RE_ITEM = /^(.*?)[\s\t]+\$\s*(\d+(?:\.\d{1,2})?)\s*$/;
 const RE_SUBTOTAL = /^\s*subtotal\b.*\$\s*(\d+(?:\.\d{1,2})?)/i;
@@ -86,14 +82,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only PDF uploads are supported." }, { status: 415 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // Force the Node/CJS entry of pdf-parse at runtime (prevents ESM/browser path)
+    const { createRequire } = await import("module");
+    const requireCjs = createRequire(import.meta.url);
+    const pdfParse: (buf: Buffer) => Promise<{ text?: string }> = requireCjs("pdf-parse");
+    // If your environment ever resolves wrong, fallback:
+    // const pdfParse = requireCjs("pdf-parse/lib/pdf-parse.js");
 
-    // Extract text using pdf-parse v1 (function API)
+    const buffer = Buffer.from(await file.arrayBuffer());
     const result = await pdfParse(buffer);
     const text = result?.text ?? "";
 
-    const sanitized = sanitizeText(text ?? "");
-
+    const sanitized = sanitizeText(text);
     if (!sanitized) {
       return NextResponse.json(
         { error: "No extractable text was found. Please upload a text-based PDF." },
@@ -117,4 +117,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
