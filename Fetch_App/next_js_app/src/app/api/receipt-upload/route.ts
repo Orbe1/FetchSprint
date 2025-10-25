@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Note: load pdf-parse CJS only inside POST to avoid build-time execution
+
 // ---- Types & helpers (unchanged) ----
 type ReceiptItem = { name: string; price: number };
 type ReceiptSummary = {
@@ -82,15 +84,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only PDF uploads are supported." }, { status: 415 });
     }
 
-    // Force the Node/CJS entry of pdf-parse at runtime (prevents ESM/browser path)
-    const { createRequire } = await import("module");
-    const requireCjs = createRequire(import.meta.url);
-    const pdfParse: (buf: Buffer) => Promise<{ text?: string }> = requireCjs("pdf-parse");
-    // If your environment ever resolves wrong, fallback:
-    // const pdfParse = requireCjs("pdf-parse/lib/pdf-parse.js");
+    // Load the tiny CJS helper at runtime (server-only)
+    const { default: parsePdfBuffer } = await import("@/lib/parsePdf.cjs");
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const result = await pdfParse(buffer);
+    const result = await parsePdfBuffer(buffer);
     const text = result?.text ?? "";
 
     const sanitized = sanitizeText(text);
