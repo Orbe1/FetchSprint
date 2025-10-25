@@ -1,7 +1,12 @@
 {
-  "dependencies": {
-    "@supabase/ssr": "^0.6.1",
-    "next-themes": "^0.4.6",
-    "vercel": "^44.5.4"
+  "name": "fetchapp",
+  "private": true,
+  "workspaces": [
+    "Fetch_App/next_js_app"
+  ],
+  "scripts": {
+    "dev": "npm --workspace Fetch_App/next_js_app run dev",
+    "build": "npm --workspace Fetch_App/next_js_app run build",
+    "start": "npm --workspace Fetch_App/next_js_app run start"
   }
 }
